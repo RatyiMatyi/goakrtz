@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace goakrtz
 {
@@ -10,34 +9,45 @@ namespace goakrtz
     {
         class Gokart_palya
         {
-            public string palya_nev = "Mokec racse verseny pálya";
-            public string palya_cime = "Mokec racse verseny pálya, 6320 Vasút utca 4";
-            public string telefonszam = "06 30 123 4567";
-            public string weblap = "www.mokec.hu";
+            public string Nev { get; set; }
+            public string Cim { get; set; }
+            public string Telefonszam { get; set; }
+            public string Weboldal { get; set; }
 
-            public void Palya_adatok()
+            public Gokart_palya(string nev, string cim, string telefonszam, string weboldal)
             {
-                Console.WriteLine("Pálya neve: " + palya_nev);
-                Console.WriteLine("Pálya címe: " + palya_cime);
-                Console.WriteLine("Telefonszám: " + telefonszam);
-                Console.WriteLine("Weblap: " + weblap);
+                Nev = nev;
+                Cim = cim;
+                Telefonszam = telefonszam;
+                Weboldal = weboldal;
+            }
+
+            public void KiirAdatok()
+            {
+                Console.WriteLine($"=== {Nev} ===");
+                Console.WriteLine($"Cím: {Cim}");
+                Console.WriteLine($"Telefonszám: {Telefonszam}");
+                Console.WriteLine($"Weboldal: {Weboldal}");
+                Console.WriteLine("--------------------------------------------------");
             }
         }
+
         class Versenyzo
         {
             public string vezetek_nev { get; set; }
             public string kereszt_nev { get; set; }
             public DateTime szul_datum { get; set; }
-            public bool felnot_eves { get; set; } = false;
+            public bool felnot_eves { get; set; }
             public string azonosito { get; set; }
             public string EmailCim { get; set; }
 
-            public Versenyzo(string vezetek_nev, string kereszt_nev, DateTime szul_datum, bool felnot_eves, string azonosito)
+            public Versenyzo(string vNev, string kNev, DateTime szul)
             {
-                this.vezetek_nev = vezetek_nev;
-                this.kereszt_nev = kereszt_nev;
-                this.szul_datum = szul_datum;
+                vezetek_nev = vNev;
+                kereszt_nev = kNev;
+                szul_datum = szul;
 
+                // 18. életév vizsgálata
                 DateTime ma = DateTime.Now;
                 int kor = ma.Year - szul_datum.Year;
                 if (szul_datum.Date > ma.AddYears(-kor))
@@ -46,32 +56,35 @@ namespace goakrtz
                 }
                 felnot_eves = kor >= 18;
 
-                string ekezetmentesVezeteknev = EkezetMentesit(vezetek_nev);
-                string ekezetmentesKeresztnev = EkezetMentesit(kereszt_nev);
+                // Ékezetmentesítés az azonosítóhoz és e-mailhez
+                string vMentes = EkezetMentesit(vezetek_nev);
+                string kMentes = EkezetMentesit(kereszt_nev);
 
+                // Azonosító: GO-KovacsDenes-19741204
+                string datumStr = szul_datum.ToString("yyyyMMdd");
+                azonosito = $"GO-{vMentes}{kMentes}-{datumStr}";
 
-
-                // Azonosító generálása: GO-KovacsDenes-19741204
-                string datumFormatum = szul_datum.ToString("yyyyMMdd");
-                azonosito = $"GO-{ekezetmentesVezeteknev}{ekezetmentesKeresztnev}-{datumFormatum}";
-
-                // Email cím generálása: kovacs.denes@gmail.com
-                EmailCim = $"{ekezetmentesVezeteknev.ToLower()}.{ekezetmentesKeresztnev.ToLower()}@gmail.com";
+                // Email: kovacs.denes@gmail.com
+                EmailCim = $"{vMentes.ToLower()}.{kMentes.ToLower()}@gmail.com";
             }
-            
 
-                private string EkezetMentesit(string szoveg)
+            private string EkezetMentesit(string szoveg)
             {
                 string ekezetes = "áéíóöőúüűÁÉÍÓÖŐÚÜŰ";
                 string mentes = "aeioouuuuAEIOOUUUU";
 
-                StringBuilder sb = new StringBuilder(szoveg);
-                for (int i = 0; i < ekezetes.Length; i++)
+                StringBuilder sb = new StringBuilder();
+                foreach (char c in szoveg)
                 {
-                    sb.Replace(ekezetes[i], mentes[i]);
+                    int index = ekezetes.IndexOf(c);
+                    if (index != -1)
+                        sb.Append(mentes[index]);
+                    else
+                        sb.Append(c);
                 }
                 return sb.ToString();
             }
+
             public void Kiir()
             {
                 Console.WriteLine($"Azonosító: {azonosito}");
@@ -83,18 +96,75 @@ namespace goakrtz
             }
         }
 
-                
         static void Main(string[] args)
         {
-            /* Barta Bulcsu 
-             * Gokart projekt 2026.09.07*/
+            Console.WriteLine("==================================================");
             Console.WriteLine("BB-Gokart projekt 2026.09.07");
-            string palya_nev = "Mokec racse verseny pálya";
-            string palya_cime = "Mokec racse verseny pálya, 6320 Vasút utca 4";
-            string telefonszam = "06 30 123 4567";
-            string weblap = "www.mokec.hu";
+            Console.WriteLine("==================================================\n");
 
+            Gokart_palya palya = new Gokart_palya(
+                "Mokec racse verseny pálya",
+                "Mokec racse verseny pálya, 6320 Vasút utca 4",
+                "06 30 123 4567",
+                "www.mokec.hu"
+            );
+            palya.KiirAdatok();
 
+            // Fájlok beolvasása a speciális vesszős formátum szerint
+            List<string> vezeteknevek = BeolvasFajl("vezeteknevek.txt", new string[] { "Kovács", "Nagy", "Szabó", "Tóth" });
+            List<string> keresztnevek = BeolvasFajl("keresztnevek.txt", new string[] { "Dénes", "Anna", "Bence", "Katalin" });
+
+            Random rand = new Random();
+            int versenyoSzam = rand.Next(1, 151);
+            List<Versenyzo> versenyzok = new List<Versenyzo>();
+
+            for (int i = 0; i < versenyoSzam; i++)
+            {
+                string vNev = vezeteknevek[rand.Next(vezeteknevek.Count)];
+                string kNev = keresztnevek[rand.Next(keresztnevek.Count)];
+
+                int ev = rand.Next(1950, 2016);
+                int honap = rand.Next(1, 13);
+                int nap = rand.Next(1, DateTime.DaysInMonth(ev, honap) + 1);
+                DateTime szuletesiIdo = new DateTime(ev, honap, nap);
+
+                versenyzok.Add(new Versenyzo(vNev, kNev, szuletesiIdo));
+            }
+
+            Console.WriteLine($"Generált versenyzők száma: {versenyzok.Count}\n");
+            foreach (var v in versenyzok)
+            {
+                v.Kiir();
+            }
+
+            Console.WriteLine("Nyomj meg egy gombot a kilépéshez...");
+            Console.ReadKey();
+        }
+
+        // Fájlbeolvasó, ami a vesszővel és aposztróffal elválasztott neveket kezeli
+        static List<string> BeolvasFajl(string fajlNev, string[] alapertelmezett)
+        {
+            if (File.Exists(fajlNev))
+            {
+                string teljesSzoveg = File.ReadAllText(fajlNev);
+
+                // Vessző mentén feldaraboljuk a szöveget
+                string[] elemek = teljesSzoveg.Split(',');
+                List<string> tisztitottNevek = new List<string>();
+
+                foreach (string elem in elemek)
+                {
+                    // Eltávolítjuk a szóközöket, idézőjeleket/aposztrófokat (')
+                    string nev = elem.Trim().Trim('\'', '"');
+                    if (!string.IsNullOrWhiteSpace(nev))
+                    {
+                        tisztitottNevek.Add(nev);
+                    }
+                }
+
+                return tisztitottNevek.Count > 0 ? tisztitottNevek : new List<string>(alapertelmezett);
+            }
+            return new List<string>(alapertelmezett);
         }
     }
 }
