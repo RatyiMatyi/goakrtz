@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace goakrtz
@@ -94,6 +95,156 @@ namespace goakrtz
                 Console.WriteLine($"E-mail: {EmailCim}");
                 Console.WriteLine("--------------------------------------------------");
             }
+
+            
+        }
+        // Időpontfoglalási rendszert kezelő osztály
+        class FoglalasiRendszer
+        {
+            // Kulcs: Év-Hónap-Nap-Óra (pl. "2026-09-26-15"), Érték: azon versenyzők azonosítói, akik abban az órában lefoglalták a pályát
+            private Dictionary<string, List<string>> foglalasok = new Dictionary<string, List<string>>();
+
+            // Megjeleníti a hónap végéig fennmaradó napok időszalagját
+            public void IdoszalagMegjelenites()
+            {
+                DateTime ma = DateTime.Now;
+                int napokAHonapban = DateTime.DaysInMonth(ma.Year, ma.Month);
+
+                Console.WriteLine("\n=== FOGLALÁSI IDŐSZALAG (Zöld = Szabad | Piros = Megtelt) ===\n");
+
+                // 1. Táblázat Felső Kerete
+                Console.Write("┌────────────");
+                for (int ora = 8; ora < 19; ora++)
+                {
+                    Console.Write("┬───────");
+                }
+                Console.WriteLine("┐");
+
+                // 2. Fejléc Kiíratása (Idősávok)
+                Console.Write("│ DÁTUM      ");
+                for (int ora = 8; ora < 19; ora++)
+                {
+                    string idosav = $"{ora:00}-{ora + 1:00}";
+                    Console.Write($"│ {idosav} ");
+                }
+                Console.WriteLine("│");
+
+                // 3. Fejléc alatti elválasztó
+                Console.Write("├────────────");
+                for (int ora = 8; ora < 19; ora++)
+                {
+                    Console.Write("┼───────");
+                }
+                Console.WriteLine("┤");
+
+                // 4. Adatsorok kiíratása (Napok)
+                for (int nap = ma.Day; nap <= napokAHonapban; nap++)
+                {
+                    DateTime aktualisNap = new DateTime(ma.Year, ma.Month, nap);
+                    Console.Write($"│ {aktualisNap:yyyy.MM.dd} ");
+
+                    for (int ora = 8; ora < 19; ora++)
+                    {
+                        string kulcs = $"{aktualisNap:yyyy-MM-dd}-{ora}";
+                        int letszam = foglalasok.ContainsKey(kulcs) ? foglalasok[kulcs].Count : 0;
+
+                        Console.Write("│");
+
+                        // Színkódolt cella kirajzolása
+                        if (letszam > 0)
+                        {
+                            // PIROS CELLA (Megtelt)
+                            Console.BackgroundColor = ConsoleColor.DarkRed;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.Write(" FULL  ");
+                        }
+                        else
+                        {
+                            // ZÖLD CELLA (Szabad)
+                            Console.BackgroundColor = ConsoleColor.DarkGreen;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.Write(" SZABAD");
+                        }
+
+                        // Háttérszín alaphelyzetbe állítása a szegélyhez
+                        Console.ResetColor();
+                    }
+                    Console.WriteLine("│");
+
+                    // Sorok közötti vízszintes elválasztó (az utolsó sor kivételével)
+                    if (nap < napokAHonapban)
+                    {
+                        Console.Write("├────────────");
+                        for (int ora = 8; ora < 19; ora++)
+                        {
+                            Console.Write("┼───────");
+                        }
+                        Console.WriteLine("┤");
+                    }
+                }
+
+                // 5. Táblázat Alsó Kerete
+                Console.Write("└────────────");
+                for (int ora = 8; ora < 19; ora++)
+                {
+                    Console.Write("┴───────");
+                }
+                Console.WriteLine("┘\n");
+            }
+
+            // Új foglalás beállítása vagy módosítása
+            public bool FoglalassHozzaadasa(string azonosito, DateTime datum, int kezdOora, int orakSzama)
+            {
+                // Szabályok ellenőrzése
+                if (kezdOora < 8 || kezdOora + orakSzama > 19)
+                {
+                    Console.WriteLine("HIBA: A nyitvatartási idő 8:00 és 19:00 között van!");
+                    return false;
+                }
+
+                if (orakSzama < 1 || orakSzama > 2)
+                {
+                    Console.WriteLine("HIBA: Minimum 1, maximum 2 összefüggő órát lehet foglalni!");
+                    return false;
+                }
+
+                // Létszámkorlát ellenőrzése (Max 20 fő/óra)
+                for (int i = 0; i < orakSzama; i++)
+                {
+                    string kulcs = $"{datum:yyyy-MM-dd}-{kezdOora + i}";
+                    int létszám = foglalasok.ContainsKey(kulcs) ? foglalasok[kulcs].Count : 0;
+                    if (létszám >= 20)
+                    {
+                        Console.WriteLine($"HIBA: A(z) {datum:MM.dd.} {kezdOora + i}:00 idősáv megtelt (max 20 fő)!");
+                        return false;
+                    }
+                }
+
+                // Korábbi foglalások törlése az adott versenyzőnél (átállítás funkció)
+                TorolVersenyzoFoglalásai(azonosito);
+
+                // Új foglalások rögzítése
+                for (int i = 0; i < orakSzama; i++)
+                {
+                    string kulcs = $"{datum:yyyy-MM-dd}-{kezdOora + i}";
+                    if (!foglalasok.ContainsKey(kulcs))
+                    {
+                        foglalasok[kulcs] = new List<string>();
+                    }
+                    foglalasok[kulcs].Add(azonosito);
+                }
+
+                Console.WriteLine($"SIKER: {azonosito} foglalása rögzítve ({datum:MM.dd.} {kezdOora:00}:00 - {kezdOora + orakSzama:00}:00)!");
+                return true;
+            }
+
+            private void TorolVersenyzoFoglalásai(string azonosito)
+            {
+                foreach (var kulcs in foglalasok.Keys)
+                {
+                    foglalasok[kulcs].Remove(azonosito);
+                }
+            }
         }
 
         static void Main(string[] args)
@@ -131,37 +282,96 @@ namespace goakrtz
                 versenyzok.Add(new Versenyzo(vNev, kNev, szuletesiIdo));
             }
 
-            Console.WriteLine($"Generált versenyzők száma: {versenyzok.Count}\n");
+            // 1. Versenyzők adatai kilistázása
+            Console.WriteLine($"\n--- GENERÁLT VERSENYZŐK LISTÁJA ({versenyzok.Count} fő) ---");
             foreach (var v in versenyzok)
             {
                 v.Kiir();
             }
 
-            Console.WriteLine("Nyomj meg egy gombot a kilépéshez...");
+            FoglalasiRendszer rendszer = new FoglalasiRendszer();
+
+            // 2. Kezdő időszalag megjelenítése (minden zöld)
+            rendszer.IdoszalagMegjelenites();
+
+            // 3. Manuális foglalás beállítása / átállítása
+            bool tovabb = true;
+            while (tovabb)
+            {
+                Console.WriteLine("\n--- MANUÁLIS IDŐPONTFOGLALÁS / ÁTÁLLÍTÁS ---");
+                Versenyzo kivalasztott = VersenyzoKivalasztasa(versenyzok);
+
+                if (kivalasztott != null)
+                {
+                    try
+                    {
+                        // 1. Lekérjük a pontos aktuális dátumot
+                        DateTime ma = DateTime.Now;
+
+                        // 2. Be kérjük a napot
+                        Console.Write($"Adja meg a napot a jelenlegi hónapban ({ma.Day}-{DateTime.DaysInMonth(ma.Year, ma.Month)}): ");
+                        int nap = int.Parse(Console.ReadLine());
+
+                        Console.Write("Kezdő óra (8-18): ");
+                        int kezdOora = int.Parse(Console.ReadLine());
+
+                        Console.Write("Hány órára foglal (1 vagy 2): ");
+                        int orakSzama = int.Parse(Console.ReadLine());
+
+                        // 3. PONTOS DÁTUM LÉTREHOZÁSA (A ma.Year és ma.Month használatával!)
+                        DateTime foglalasiDatum = new DateTime(ma.Year, ma.Month, nap);
+
+                        // 4. Foglalás elvégzése
+                        rendszer.FoglalassHozzaadasa(kivalasztott.azonosito, foglalasiDatum, kezdOora, orakSzama);
+
+                        // 5. Frissített táblázat kirajzolása
+                        rendszer.IdoszalagMegjelenites();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"HIBA: {ex.Message}\n");
+                    }
+                }
+
+                Console.Write("Szeretne újabb foglalást/módosítást végezni? (i/n): ");
+                tovabb = Console.ReadLine().ToLower() == "i";
+            }
+
+            Console.WriteLine("\nNyomj meg egy gombot a kilépéshez...");
             Console.ReadKey();
         }
 
-        // Fájlbeolvasó, ami a vesszővel és aposztróffal elválasztott neveket kezeli
+        // Versenyző kiválasztására szolgáló függvény az azonosító alapján
+        static Versenyzo VersenyzoKivalasztasa(List<Versenyzo> versenyzok)
+        {
+            Console.Write("Módosítandó versenyző azonosítója (pl. GO-KovacsDenes-19741204): ");
+            string keresettAzonosito = Console.ReadLine().Trim();
+
+            Versenyzo talalat = versenyzok.FirstOrDefault(v => v.azonosito.Equals(keresettAzonosito, StringComparison.OrdinalIgnoreCase));
+
+            if (talalat == null)
+            {
+                Console.WriteLine("Nem található versenyző ezzel az azonosítóval!");
+            }
+            return talalat;
+        }
+
         static List<string> BeolvasFajl(string fajlNev, string[] alapertelmezett)
         {
             if (File.Exists(fajlNev))
             {
                 string teljesSzoveg = File.ReadAllText(fajlNev);
-
-                // Vessző mentén feldaraboljuk a szöveget
                 string[] elemek = teljesSzoveg.Split(',');
                 List<string> tisztitottNevek = new List<string>();
 
                 foreach (string elem in elemek)
                 {
-                    // Eltávolítjuk a szóközöket, idézőjeleket/aposztrófokat (')
                     string nev = elem.Trim().Trim('\'', '"');
                     if (!string.IsNullOrWhiteSpace(nev))
                     {
                         tisztitottNevek.Add(nev);
                     }
                 }
-
                 return tisztitottNevek.Count > 0 ? tisztitottNevek : new List<string>(alapertelmezett);
             }
             return new List<string>(alapertelmezett);
