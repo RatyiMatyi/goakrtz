@@ -153,10 +153,9 @@ namespace goakrtz
                         // Színkódolt cella kirajzolása
                         if (letszam > 0)
                         {
-                            // PIROS CELLA (Megtelt)
                             Console.BackgroundColor = ConsoleColor.DarkRed;
                             Console.ForegroundColor = ConsoleColor.White;
-                            Console.Write(" FULL  ");
+                            Console.Write($" {letszam,2}/20 "); // Kiírja pl. " 3/20"
                         }
                         else
                         {
@@ -193,18 +192,18 @@ namespace goakrtz
             }
 
             // Új foglalás beállítása vagy módosítása
-            public bool FoglalassHozzaadasa(string azonosito, DateTime datum, int kezdOora, int orakSzama)
+            public bool FoglalassHozzaadasa(string azonosito, DateTime datum, int kezdOora, int orakSzama, bool csendes = false)
             {
                 // Szabályok ellenőrzése
                 if (kezdOora < 8 || kezdOora + orakSzama > 19)
                 {
-                    Console.WriteLine("HIBA: A nyitvatartási idő 8:00 és 19:00 között van!");
+                    if (!csendes) Console.WriteLine("HIBA: A nyitvatartási idő 8:00 és 19:00 között van!");
                     return false;
                 }
 
                 if (orakSzama < 1 || orakSzama > 2)
                 {
-                    Console.WriteLine("HIBA: Minimum 1, maximum 2 összefüggő órát lehet foglalni!");
+                    if (!csendes) Console.WriteLine("HIBA: Minimum 1, maximum 2 összefüggő órát lehet foglalni!");
                     return false;
                 }
 
@@ -215,7 +214,7 @@ namespace goakrtz
                     int létszám = foglalasok.ContainsKey(kulcs) ? foglalasok[kulcs].Count : 0;
                     if (létszám >= 20)
                     {
-                        Console.WriteLine($"HIBA: A(z) {datum:MM.dd.} {kezdOora + i}:00 idősáv megtelt (max 20 fő)!");
+                        if (!csendes) Console.WriteLine($"HIBA: A(z) {datum:MM.dd.} {kezdOora + i}:00 idősáv megtelt (max 20 fő)!");
                         return false;
                     }
                 }
@@ -234,7 +233,11 @@ namespace goakrtz
                     foglalasok[kulcs].Add(azonosito);
                 }
 
-                Console.WriteLine($"SIKER: {azonosito} foglalása rögzítve ({datum:MM.dd.} {kezdOora:00}:00 - {kezdOora + orakSzama:00}:00)!");
+                if (!csendes)
+                {
+                    Console.WriteLine($"\nSIKER: {azonosito} foglalása rögzítve ({datum:MM.dd.} {kezdOora:00}:00 - {kezdOora + orakSzama:00}:00)!");
+                }
+
                 return true;
             }
 
@@ -290,6 +293,22 @@ namespace goakrtz
             }
 
             FoglalasiRendszer rendszer = new FoglalasiRendszer();
+
+            // Véletlenszerűen lefoglalunk 5-15 időpontot
+            int randomFoglalasokSzama = rand.Next(5, 16);
+            DateTime maiNap = DateTime.Now;
+            int napokAHonapban = DateTime.DaysInMonth(maiNap.Year, maiNap.Month);
+
+            for (int i = 0; i < randomFoglalasokSzama; i++)
+            {
+                Versenyzo rVersenyzo = versenyzok[rand.Next(versenyzok.Count)];
+                int rNap = rand.Next(maiNap.Day, napokAHonapban + 1);
+                int rOra = rand.Next(8, 18);
+                int rOrakSzama = rand.Next(1, 3);
+
+                DateTime rDatum = new DateTime(maiNap.Year, maiNap.Month, rNap);
+                rendszer.FoglalassHozzaadasa(rVersenyzo.azonosito, rDatum, rOra, rOrakSzama, csendes: true);
+            }
 
             // 2. Kezdő időszalag megjelenítése (minden zöld)
             rendszer.IdoszalagMegjelenites();
